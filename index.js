@@ -13,20 +13,31 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri)
 
-let donorsCollection;
-
 async function run() {
      try {
           await client.connect();
           const db = client.db("CTG-Blood-Connect")
-          donorsCollection = db.collection("donors")
+          const donorsCollection = db.collection("donors")
 
+          app.get('/donors', async (req, res) => {
+               const donors = await donorsCollection.find().toArray()
+               res.send(donors)
+          })
+          
+          //post donors data 
           app.post('/donors', async (req, res) => {
                try {
                     const donor = req.body;
-                    
-                    donor.available = true;
+                    const email = donor.email
+                    // duplicate donor apply check
+                    const existingDonor = await donorsCollection.findOne({ email })
+                    if (existingDonor) {
+                         return res.status(409).json({
+                              message: 'This email is already registered as a donor'
+                         })
+                    }
 
+                    donor.available = true;
                     const result = await donorsCollection.insertOne(donor);
 
                     res.status(201).json({
@@ -37,7 +48,6 @@ async function run() {
                     res.status(500).json({ message: error.message });
                }
           });
-
 
           // Send a ping to confirm a successful connection
           await client.db("admin").command({ ping: 1 });
