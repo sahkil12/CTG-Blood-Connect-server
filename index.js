@@ -20,10 +20,24 @@ async function run() {
           const donorsCollection = db.collection("donors")
 
           app.get('/donors', async (req, res) => {
-               const donors = await donorsCollection.find().toArray()
+               const { bloodGroup, area, limit } = req.query
+               let query = {}
+
+               if (bloodGroup) {
+                    query.bloodGroup = bloodGroup
+               }
+               if (area) {
+                    query.area = area
+               }
+               let cursor = donorsCollection.find(query);
+
+               if (limit) {
+                    cursor = cursor.limit(Number(limit));
+               }
+               const donors = await cursor.toArray()
                res.send(donors)
           })
-          
+
           //post donors data 
           app.post('/donors', async (req, res) => {
                try {
