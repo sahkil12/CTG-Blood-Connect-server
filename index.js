@@ -20,24 +20,27 @@ async function run() {
           const donorsCollection = db.collection("donors")
 
           app.get('/donors', async (req, res) => {
-               const { bloodGroup, area, limit } = req.query
+               const { bloodGroup, area, limit = 12, page = 1 } = req.query
+
                let query = {}
+               if (bloodGroup) query.bloodGroup = bloodGroup;
+               if (area) query.area = area;
 
-               if (bloodGroup) {
-                    query.bloodGroup = bloodGroup
-               }
-               if (area) {
-                    query.area = area
-               }
-               let cursor = donorsCollection.find(query);
+               const skip = (Number(page) - 1) * Number(limit);
+               const total = await donorsCollection.countDocuments(query);
 
-               if (limit) {
-                    cursor = cursor.limit(Number(limit));
-               }
-               const donors = await cursor.toArray()
-               res.send(donors)
+               const donors = await donorsCollection
+                    .find(query)
+                    .skip(skip)
+                    .limit(Number(limit))
+                    .toArray();
+               res.send({
+                    donors,
+                    total,
+                    totalPages: Math.ceil(total / limit),
+                    currentPage: Number(page),
+               });
           })
-
           //post donors data 
           app.post('/donors', async (req, res) => {
                try {
