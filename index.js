@@ -66,6 +66,11 @@ async function run() {
                     res.status(500).json({ message: error.message });
                }
           });
+          // 
+          app.get('/users', async (req, res) => {
+               const result = await usersCollection.find().toArray()
+               res.send(result)
+          })
           // users data 
           app.post('/users', async (req, res) => {
                try {
