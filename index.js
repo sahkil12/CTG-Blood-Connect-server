@@ -57,7 +57,15 @@ async function run() {
 
                     donor.available = true;
                     const result = await donorsCollection.insertOne(donor);
-
+                    // user role change 
+                    await usersCollection.updateOne(
+                         { email },
+                         {
+                              $set:{
+                                   role:'donor'
+                              }
+                         }
+                    );
                     res.status(201).json({
                          message: 'Donor added successfully',
                          insertedId: result.insertedId
@@ -80,7 +88,7 @@ async function run() {
                     const existingUser = await usersCollection.findOne({ email });
 
                     if (existingUser) {
-                         return res.status(409).json({
+                         return res.status(200).json({
                               message: 'User already exists'
                          });
                     }
