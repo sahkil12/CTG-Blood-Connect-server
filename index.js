@@ -61,8 +61,8 @@ async function run() {
                     await usersCollection.updateOne(
                          { email },
                          {
-                              $set:{
-                                   role:'donor'
+                              $set: {
+                                   role: 'donor'
                               }
                          }
                     );
@@ -79,6 +79,21 @@ async function run() {
                const result = await usersCollection.find().toArray()
                res.send(result)
           })
+          // 
+          app.get('/users/:email', async (req, res) => {
+               const email = req.params.email;
+
+               try {
+                    const user = await usersCollection.findOne({ email });
+
+                    if (!user) {
+                         return res.status(404).json({ message: 'User not found' });
+                    }
+                    res.send(user);
+               } catch (error) {
+                    res.status(500).json({ message: error.message });
+               }
+          });
           // users data 
           app.post('/users', async (req, res) => {
                try {
