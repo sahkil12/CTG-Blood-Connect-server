@@ -42,6 +42,25 @@ async function run() {
                     currentPage: Number(page),
                });
           })
+          // Get a single donor by email
+          app.get('/donors/:email', async (req, res) => {
+               try {
+                    const email = req.params.email;
+                    const donor = await donorsCollection.findOne({ email });
+
+                    if (!donor) {
+                         return res.status(404).json({
+                              message: 'Donor not found'
+                         });
+                    }
+                    res.send(donor);
+
+               } catch (error) {
+                    res.status(500).json({
+                         message: error.message
+                    });
+               }
+          });
           //post donors data 
           app.post('/donors', async (req, res) => {
                try {
