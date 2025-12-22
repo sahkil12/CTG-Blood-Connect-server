@@ -141,6 +141,57 @@ async function run() {
                     res.status(500).json({ message: error.message });
                }
           });
+          // delete
+          // app.delete('/donors/:email', async (req, res) => {
+          //      const email = req.params.email;
+
+          //      await donorsCollection.deleteOne({ email });
+
+          //      await usersCollection.updateOne(
+          //           { email },
+          //           { $set: { role: "user" } }
+          //      );
+
+          //      res.send({ message: "Donor removed and role updated" });
+          // });
+
+          // edit
+          // app.patch('/donors/:email', async (req, res) => {
+          //      const email = req.params.email;
+          //      const updatedData = req.body;
+
+          //      const result = await donorsCollection.updateOne(
+          //           { email },
+          //           { $set: updatedData }
+          //      );
+
+          //      res.send(result);
+          // });
+          // Update donor data by email
+          app.patch('/donors/:email', async (req, res) => {
+               try {
+                    const email = req.params.email;
+                    const updatedData = req.body;
+                    // Database update
+                    const result = await donorsCollection.updateOne(
+                         { email },
+                         {
+                              $set: {
+                                   ...updatedData,
+                                   updatedAt: new Date()
+                              }
+                         }
+                    );
+                    res.json({
+                         message: 'Donor updated successfully',
+                         modifiedCount: result.modifiedCount
+                    });
+               } catch (error) {
+                    res.status(500).json({
+                         message: error.message
+                    });
+               }
+          });
           // Send a ping to confirm a successful connection
           await client.db("admin").command({ ping: 1 });
           console.log("Pinged your deployment. You successfully connected to MongoDB!");
