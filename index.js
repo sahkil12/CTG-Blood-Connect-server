@@ -141,32 +141,35 @@ async function run() {
                     res.status(500).json({ message: error.message });
                }
           });
-          // delete
-          // app.delete('/donors/:email', async (req, res) => {
-          //      const email = req.params.email;
+          // Delete donor by email
+          app.delete('/donors/:email', async (req, res) => {
+               try {
+                    const email = req.params.email;
 
-          //      await donorsCollection.deleteOne({ email });
+                    const deleteResult = await donorsCollection.deleteOne({ email });
 
-          //      await usersCollection.updateOne(
-          //           { email },
-          //           { $set: { role: "user" } }
-          //      );
+                    if (deleteResult.deletedCount === 0) {
+                         return res.status(404).json({
+                              message: "Donor not found"
+                         });
+                    }
+                    // role update 
+                    const updateResult = await usersCollection.updateOne(
+                         { email },
+                         { $set: { role: "user" } }
+                    );
 
-          //      res.send({ message: "Donor removed and role updated" });
-          // });
-
-          // edit
-          // app.patch('/donors/:email', async (req, res) => {
-          //      const email = req.params.email;
-          //      const updatedData = req.body;
-
-          //      const result = await donorsCollection.updateOne(
-          //           { email },
-          //           { $set: updatedData }
-          //      );
-
-          //      res.send(result);
-          // });
+                    res.json({
+                         message: "Donor removed and role updated",
+                         deletedCount: deleteResult.deletedCount,
+                         updatedUser: updateResult.modifiedCount
+                    });
+               } catch (error) {
+                    res.status(500).json({
+                         message: error.message
+                    });
+               }
+          });
           // Update donor data by email
           app.patch('/donors/:email', async (req, res) => {
                try {
