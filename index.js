@@ -4,9 +4,17 @@ const { MongoClient } = require('mongodb');
 require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
+const admin = require('firebase-admin');
+
 // middleware
 app.use(cors());
 app.use(express.json());
+// firebase admin
+const serviceAccount = require('./firebase-admin-sdk.json');
+
+admin.initializeApp({
+     credential: admin.credential.cert(serviceAccount)
+});
 
 // mongodb connection
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gr8kgxz.mongodb.net/?appName=Cluster0`;
@@ -19,7 +27,26 @@ async function run() {
           const db = client.db("CTG-Blood-Connect")
           const donorsCollection = db.collection("donors")
           const usersCollection = db.collection("users")
+          // jwt token verify
+          const verifyFirebaseToken = async (req, res, next) => {
+               try {
+                    const authHeader = req.headers.authorization;
 
+                    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                         return res.status(401).json({ message: 'Unauthorized access' });
+                    }
+                    const token = authHeader.split(' ')[1];
+                    if (!token) {
+                         return res.status(401).send({ message: "unauthorized access" });
+                    }
+                    const decodedUser = await admin.auth().verifyIdToken(token);
+                    req.user = decodedUser;
+                    next();
+               } catch (error) {
+                    return res.status(403).json({ message: 'Forbidden access' });
+               }
+          };
+          // 
           app.get('/donors', async (req, res) => {
                const { bloodGroup, area, limit = 12, page = 1 } = req.query
 
@@ -43,7 +70,7 @@ async function run() {
                });
           })
           // Get a single donor by email
-          app.get('/donors/:email', async (req, res) => {
+          app.get('/donors/:email', verifyFirebaseToken, async (req, res) => {
                try {
                     const email = req.params.email;
                     const donor = await donorsCollection.findOne({ email });
@@ -62,7 +89,7 @@ async function run() {
                }
           });
           //post donors data 
-          app.post('/donors', async (req, res) => {
+          app.post('/donors', verifyFirebaseToken, async (req, res) => {
                try {
                     const donor = req.body;
                     const email = donor.email
@@ -94,12 +121,12 @@ async function run() {
                }
           });
           // 
-          app.get('/users', async (req, res) => {
+          app.get('/users', verifyFirebaseToken, async (req, res) => {
                const result = await usersCollection.find().toArray()
                res.send(result)
           })
           // 
-          app.get('/users/:email', async (req, res) => {
+          app.get('/users/:email', verifyFirebaseToken, async (req, res) => {
                const email = req.params.email;
 
                try {
@@ -142,7 +169,7 @@ async function run() {
                }
           });
           // Delete donor by email
-          app.delete('/donors/:email', async (req, res) => {
+          app.delete('/donors/:email', verifyFirebaseToken, async (req, res) => {
                try {
                     const email = req.params.email;
 
@@ -171,7 +198,7 @@ async function run() {
                }
           });
           // Update donor data by email
-          app.patch('/donors/:email', async (req, res) => {
+          app.patch('/donors/:email', verifyFirebaseToken, async (req, res) => {
                try {
                     const email = req.params.email;
                     const updatedData = req.body;
