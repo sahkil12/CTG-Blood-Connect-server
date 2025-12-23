@@ -6,16 +6,16 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const admin = require('firebase-admin');
 // middleware
-app.use(
-     cors({
-          origin: [
-               "http://localhost:5173",
-               "https://ctg-blood-connect.web.app"
-          ],
-          credentials: true,
-     })
-);
-app.options('*', cors());
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://ctg-blood-connect.web.app"
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
 app.use(express.json());
 // firebase admin
 const serviceAccount = require('./firebase-admin-sdk.json');
