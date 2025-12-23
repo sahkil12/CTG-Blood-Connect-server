@@ -10,8 +10,7 @@ app.use(
      cors({
           origin: [
                "http://localhost:5173",
-               "https://ctg-blood-connect.web.app",
-               "https://ctg-blood-connect.firebaseapp.com"
+               "https://ctg-blood-connect.web.app"
           ],
           credentials: true,
      })
@@ -49,9 +48,13 @@ async function run() {
                     if (!token) {
                          return res.status(401).send({ message: "unauthorized access" });
                     }
-                    const decodedUser = await admin.auth().verifyIdToken(token);
-                    req.user = decodedUser;
-                    next();
+                    try {
+                         const decodedUser = await admin.auth().verifyIdToken(token);
+                         req.user = decodedUser;
+                         next();
+                    } catch (err) {
+                         return res.status(401).json({ message: "Invalid token" });
+                    }
                } catch (error) {
                     return res.status(403).json({ message: 'Forbidden access' });
                }
