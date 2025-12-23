@@ -16,14 +16,8 @@ app.use(cors({
 
 app.use(express.json());
 // firebase admin
-
 const decodedKey = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8')
 const serviceAccount = JSON.parse(decodedKey)
-
-// const serviceAccount = require('./firebase-admin-sdk.json');
-// const serviceAccount = JSON.parse(
-//      process.env.FIREBASE_SERVICE_ACCOUNT
-// )
 
 admin.initializeApp({
      credential: admin.credential.cert(serviceAccount)
@@ -35,7 +29,7 @@ const client = new MongoClient(uri)
 
 async function run() {
      try {
-          await client.connect();
+          // await client.connect();
           const db = client.db("CTG-Blood-Connect")
           const donorsCollection = db.collection("donors")
           const usersCollection = db.collection("users")
