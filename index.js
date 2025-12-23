@@ -12,13 +12,15 @@ app.use(cors({
     "https://ctg-blood-connect.web.app"
   ],
   credentials: true,
-  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 app.use(express.json());
 // firebase admin
-const serviceAccount = require('./firebase-admin-sdk.json');
+
+const decodedKey = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8')
+const serviceAccount = JSON.parse(decodedKey)
+
+// const serviceAccount = require('./firebase-admin-sdk.json');
 // const serviceAccount = JSON.parse(
 //      process.env.FIREBASE_SERVICE_ACCOUNT
 // )
