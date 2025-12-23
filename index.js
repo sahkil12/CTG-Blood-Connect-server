@@ -15,6 +15,7 @@ app.use(
           credentials: true,
      })
 );
+app.options('*', cors());
 app.use(express.json());
 // firebase admin
 const serviceAccount = require('./firebase-admin-sdk.json');
@@ -117,7 +118,7 @@ async function run() {
                }
           });
           //post donors data 
-          app.post('/donors', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
+          app.post('/donors', verifyFirebaseToken, async (req, res) => {
                try {
                     const donor = req.body;
                     const email = donor.email
