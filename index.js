@@ -10,7 +10,8 @@ app.use(
      cors({
           origin: [
                "http://localhost:5173",
-               "https://ctg-blood-connect.web.app"
+               "https://ctg-blood-connect.web.app",
+               "https://ctg-blood-connect.firebaseapp.com"
           ],
           credentials: true,
      })
@@ -18,6 +19,9 @@ app.use(
 app.use(express.json());
 // firebase admin
 const serviceAccount = require('./firebase-admin-sdk.json');
+// const serviceAccount = JSON.parse(
+//      process.env.FIREBASE_SERVICE_ACCOUNT
+// )
 
 admin.initializeApp({
      credential: admin.credential.cert(serviceAccount)
@@ -29,7 +33,7 @@ const client = new MongoClient(uri)
 
 async function run() {
      try {
-          // await client.connect();
+          await client.connect();
           const db = client.db("CTG-Blood-Connect")
           const donorsCollection = db.collection("donors")
           const usersCollection = db.collection("users")
@@ -142,7 +146,7 @@ async function run() {
                }
           });
           // 
-          app.get('/users', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
+          app.get('/users', verifyFirebaseToken, async (req, res) => {
                const result = await usersCollection.find().toArray()
                res.send(result)
           })
