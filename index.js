@@ -7,11 +7,11 @@ const PORT = process.env.PORT || 5000;
 const admin = require('firebase-admin');
 // middleware
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://ctg-blood-connect.web.app"
-  ],
-  credentials: true,
+     origin: [
+          "http://localhost:5173",
+          "https://ctg-blood-connect.web.app"
+     ],
+     credentials: true,
 }));
 
 app.use(express.json());
@@ -60,7 +60,6 @@ async function run() {
           const verifyEmailMatch = (req, res, next) => {
                const emailFromParams = req.params.email;
                const emailFromToken = req.user?.email;
-
                if (!emailFromParams || !emailFromToken) {
                     return res.status(403).json({ message: 'Forbidden access' });
                }
@@ -151,42 +150,62 @@ async function run() {
                res.send(result)
           })
           // 
+          // app.get('/users/:email', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
+          //      const email = req.params.email;
+
+          //      try {
+          //           const user = await usersCollection.findOne({ email });
+
+          //           if (!user) {
+          //                return res.status(404).json({ message: 'User not found' });
+          //           }
+          //           res.send(user);
+          //      } catch (error) {
+          //           res.status(500).json({ message: error.message });
+          //      }
+          // });
           app.get('/users/:email', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
                const email = req.params.email;
 
-               try {
-                    const user = await usersCollection.findOne({ email });
+               const user = await usersCollection.findOne({ email });
 
-                    if (!user) {
-                         return res.status(404).json({ message: 'User not found' });
-                    }
-                    res.send(user);
-               } catch (error) {
-                    res.status(500).json({ message: error.message });
+               if (!user) {
+                    return res.send({
+                         email,
+                         role: "user"
+                    });
                }
+
+               res.send(user);
           });
+
           // users data 
           app.post('/users', async (req, res) => {
                try {
-                    const user = req.body;
-                    const { email } = user;
+                    const { email, name, photo } = req.body;
                     // check if user already exists
                     const existingUser = await usersCollection.findOne({ email });
 
                     if (existingUser) {
                          return res.status(200).json({
-                              message: 'User already exists'
+                              message: 'User already exists',
+                              role: existingUser.role
                          });
                     }
-                    // set role 
-                    user.role = 'user';
-                    user.createdAt = new Date();
+                    const newUser = {
+                         email,
+                         name,
+                         photo,
+                         role: "user",
+                         createdAt: new Date()
+                    };
 
-                    const result = await usersCollection.insertOne(user);
+                    const result = await usersCollection.insertOne(newUser);
 
                     res.status(201).json({
-                         message: 'User registered successfully',
-                         insertedId: result.insertedId
+                         message: "User created",
+                         insertedId: result.insertedId,
+                         role: "user"
                     });
 
                } catch (error) {
