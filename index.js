@@ -42,9 +42,6 @@ async function run() {
                          return res.status(401).json({ message: 'Unauthorized access' });
                     }
                     const token = authHeader.split(' ')[1];
-                    if (!token) {
-                         return res.status(401).send({ message: "unauthorized access" });
-                    }
                     try {
                          const decodedUser = await admin.auth().verifyIdToken(token);
                          req.user = decodedUser;
@@ -72,27 +69,41 @@ async function run() {
           };
           // 
           app.get('/donors', async (req, res) => {
-               const { bloodGroup, area, limit = 12, page = 1 } = req.query
+               try {
+                    const { bloodGroup, area, limit = 12, page = 1 } = req.query;
 
-               let query = {}
-               if (bloodGroup) query.bloodGroup = bloodGroup;
-               if (area) query.area = area;
+                    const query = {};
 
-               const skip = (Number(page) - 1) * Number(limit);
-               const total = await donorsCollection.countDocuments(query);
+                    if (bloodGroup && bloodGroup.trim() !== "") {
+                         query.bloodGroup = bloodGroup;
+                    }
 
-               const donors = await donorsCollection
-                    .find(query)
-                    .skip(skip)
-                    .limit(Number(limit))
-                    .toArray();
-               res.send({
-                    donors,
-                    total,
-                    totalPages: Math.ceil(total / limit),
-                    currentPage: Number(page),
-               });
-          })
+                    if (area && area.trim() !== "") {
+                         query.area = area;
+                    }
+
+                    const skip = (Number(page) - 1) * Number(limit);
+
+                    const donors = await donorsCollection
+                         .find(query)
+                         .skip(skip)
+                         .limit(Number(limit))
+                         .toArray();
+
+                    const total = await donorsCollection.countDocuments(query);
+
+                    res.send({
+                         donors,
+                         total,
+                         totalPages: Math.ceil(total / Number(limit)),
+                         currentPage: Number(page),
+                    });
+               } catch (error) {
+                    console.error("GET /donors error:", error);
+                    res.status(500).json({ message: "Failed to fetch donors" });
+               }
+          });
+
           // Get a single donor by email
           app.get('/donors/:email', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
                try {
@@ -132,7 +143,8 @@ async function run() {
                          { email },
                          {
                               $set: {
-                                   role: 'donor'
+                                   role: 'donor',
+                                   isDonor: true
                               }
                          }
                     );
@@ -150,35 +162,20 @@ async function run() {
                res.send(result)
           })
           // 
-          // app.get('/users/:email', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
-          //      const email = req.params.email;
-
-          //      try {
-          //           const user = await usersCollection.findOne({ email });
-
-          //           if (!user) {
-          //                return res.status(404).json({ message: 'User not found' });
-          //           }
-          //           res.send(user);
-          //      } catch (error) {
-          //           res.status(500).json({ message: error.message });
-          //      }
-          // });
           app.get('/users/:email', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
                const email = req.params.email;
 
-               const user = await usersCollection.findOne({ email });
+               try {
+                    const user = await usersCollection.findOne({ email });
 
-               if (!user) {
-                    return res.send({
-                         email,
-                         role: "user"
-                    });
+                    if (!user) {
+                         return res.status(404).json({ message: 'User not found' });
+                    }
+                    res.send(user);
+               } catch (error) {
+                    res.status(500).json({ message: error.message });
                }
-
-               res.send(user);
           });
-
           // users data 
           app.post('/users', async (req, res) => {
                try {
@@ -189,7 +186,6 @@ async function run() {
                     if (existingUser) {
                          return res.status(200).json({
                               message: 'User already exists',
-                              role: existingUser.role
                          });
                     }
                     const newUser = {
@@ -197,6 +193,7 @@ async function run() {
                          name,
                          photo,
                          role: "user",
+                         isDonor:false,
                          createdAt: new Date()
                     };
 
@@ -227,7 +224,12 @@ async function run() {
                     // role update 
                     const updateResult = await usersCollection.updateOne(
                          { email },
-                         { $set: { role: "user" } }
+                         {
+                              $set: {
+                                   role: "user",
+                                   isDonor: false
+                              }
+                         }
                     );
 
                     res.json({
