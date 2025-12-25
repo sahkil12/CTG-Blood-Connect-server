@@ -53,7 +53,7 @@ async function run() {
                     return res.status(403).json({ message: 'Forbidden access' });
                }
           };
-          // 
+          // email verify check middleware
           const verifyEmailMatch = (req, res, next) => {
                const emailFromParams = req.params.email;
                const emailFromToken = req.user?.email;
@@ -64,10 +64,9 @@ async function run() {
                if (emailFromParams !== emailFromToken) {
                     return res.status(403).json({ message: 'Forbidden access' });
                }
-
                next();
           };
-          // 
+          // ger all donors data 
           app.get('/donors', async (req, res) => {
                try {
                     const { bloodGroup, area, limit = 12, page = 1 } = req.query;
@@ -99,11 +98,9 @@ async function run() {
                          currentPage: Number(page),
                     });
                } catch (error) {
-                    console.error("GET /donors error:", error);
-                    res.status(500).json({ message: "Failed to fetch donors" });
+                    res.status(500).json({ donors: [], total: 0 });
                }
           });
-
           // Get a single donor by email
           app.get('/donors/:email', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
                try {
@@ -127,7 +124,8 @@ async function run() {
           app.post('/donors', verifyFirebaseToken, async (req, res) => {
                try {
                     const donor = req.body;
-                    const email = donor.email
+                    const email = req.user.email
+                    donor.email = email
                     // duplicate donor apply check
                     const existingDonor = await donorsCollection.findOne({ email })
                     if (existingDonor) {
@@ -135,7 +133,6 @@ async function run() {
                               message: 'This email is already registered as a donor'
                          })
                     }
-
                     donor.available = true;
                     const result = await donorsCollection.insertOne(donor);
                     // user role change 
@@ -143,7 +140,6 @@ async function run() {
                          { email },
                          {
                               $set: {
-                                   role: 'donor',
                                    isDonor: true
                               }
                          }
@@ -156,12 +152,12 @@ async function run() {
                     res.status(500).json({ message: error.message });
                }
           });
-          // 
+          // get all user
           app.get('/users', verifyFirebaseToken, async (req, res) => {
                const result = await usersCollection.find().toArray()
                res.send(result)
           })
-          // 
+          // get user with email for role 
           app.get('/users/:email', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
                const email = req.params.email;
 
@@ -169,7 +165,11 @@ async function run() {
                     const user = await usersCollection.findOne({ email });
 
                     if (!user) {
-                         return res.status(404).json({ message: 'User not found' });
+                         return res.send({
+                              email,
+                              role: "user",
+                              isDonor: false
+                         });
                     }
                     res.send(user);
                } catch (error) {
@@ -193,7 +193,7 @@ async function run() {
                          name,
                          photo,
                          role: "user",
-                         isDonor:false,
+                         isDonor: false,
                          createdAt: new Date()
                     };
 
@@ -226,7 +226,6 @@ async function run() {
                          { email },
                          {
                               $set: {
-                                   role: "user",
                                    isDonor: false
                               }
                          }
