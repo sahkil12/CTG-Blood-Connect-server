@@ -66,6 +66,18 @@ async function run() {
                }
                next();
           };
+          // admin verify middleware
+          const verifyAdmin = async (req, res, next) => {
+               const email = req.user?.email;
+               if (!email) return res.status(403).send({ message: "Forbidden" });
+
+               const user = await usersCollection.findOne({ email });
+               if (user?.role !== "admin") {
+                    return res.status(403).send({ message: "Admin only" });
+               }
+               next();
+          };
+
           // ger all donors data 
           app.get('/donors', async (req, res) => {
                try {
@@ -134,6 +146,7 @@ async function run() {
                          })
                     }
                     donor.available = true;
+                    donor.createdAt = new Date();
                     const result = await donorsCollection.insertOne(donor);
                     // user role change 
                     await usersCollection.updateOne(
@@ -209,6 +222,45 @@ async function run() {
                     res.status(500).json({ message: error.message });
                }
           });
+          // get admin dashboard stats data api
+          app.get("/admin/dashboard-stats", verifyFirebaseToken, verifyAdmin, async (req, res) => {
+                    try {
+                         const sevenDaysAgo = new Date();
+                         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+                         const [
+                              totalUsers,
+                              totalDonors,
+                              availableDonors,
+                              last7DaysUsers,
+                              last7DaysDonors,
+                              totalAdmins,
+                         ] = await Promise.all([
+                              usersCollection.countDocuments(),
+                              donorsCollection.countDocuments(),
+                              donorsCollection.countDocuments({ available: true }),
+                              usersCollection.countDocuments({
+                                   createdAt: { $gte: sevenDaysAgo },
+                              }),
+                              donorsCollection.countDocuments({
+                                   createdAt: { $gte: sevenDaysAgo },
+                              }),
+                              usersCollection.countDocuments({ role: "admin" }),
+                         ]);
+
+                         res.send({
+                              totalUsers,
+                              totalDonors,
+                              availableDonors,
+                              last7DaysUsers,
+                              last7DaysDonors,
+                              totalAdmins,
+                         });
+                    } catch (error) {
+                         res.status(500).send({ message: error.message });
+                    }
+               }
+          );
           // Delete donor by email
           app.delete('/donors/:email', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
                try {
