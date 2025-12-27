@@ -77,7 +77,6 @@ async function run() {
                }
                next();
           };
-
           // ger all donors data 
           app.get('/donors', async (req, res) => {
                try {
@@ -224,43 +223,81 @@ async function run() {
           });
           // get admin dashboard stats data api
           app.get("/admin/dashboard-stats", verifyFirebaseToken, verifyAdmin, async (req, res) => {
-                    try {
-                         const sevenDaysAgo = new Date();
-                         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+               try {
+                    const sevenDaysAgo = new Date();
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-                         const [
-                              totalUsers,
-                              totalDonors,
-                              availableDonors,
-                              last7DaysUsers,
-                              last7DaysDonors,
-                              totalAdmins,
-                         ] = await Promise.all([
-                              usersCollection.countDocuments(),
-                              donorsCollection.countDocuments(),
-                              donorsCollection.countDocuments({ available: true }),
-                              usersCollection.countDocuments({
-                                   createdAt: { $gte: sevenDaysAgo },
-                              }),
-                              donorsCollection.countDocuments({
-                                   createdAt: { $gte: sevenDaysAgo },
-                              }),
-                              usersCollection.countDocuments({ role: "admin" }),
-                         ]);
+                    const [
+                         totalUsers,
+                         totalDonors,
+                         availableDonors,
+                         last7DaysUsers,
+                         last7DaysDonors,
+                         totalAdmins,
+                    ] = await Promise.all([
+                         usersCollection.countDocuments(),
+                         donorsCollection.countDocuments(),
+                         donorsCollection.countDocuments({ available: true }),
+                         usersCollection.countDocuments({
+                              createdAt: { $gte: sevenDaysAgo },
+                         }),
+                         donorsCollection.countDocuments({
+                              createdAt: { $gte: sevenDaysAgo },
+                         }),
+                         usersCollection.countDocuments({ role: "admin" }),
+                    ]);
 
-                         res.send({
-                              totalUsers,
-                              totalDonors,
-                              availableDonors,
-                              last7DaysUsers,
-                              last7DaysDonors,
-                              totalAdmins,
-                         });
-                    } catch (error) {
-                         res.status(500).send({ message: error.message });
-                    }
+                    res.send({
+                         totalUsers,
+                         totalDonors,
+                         availableDonors,
+                         last7DaysUsers,
+                         last7DaysDonors,
+                         totalAdmins,
+                    });
+               } catch (error) {
+                    res.status(500).send({ message: error.message });
                }
+          }
           );
+          // get user for admin
+          app.get("/admin/users", verifyFirebaseToken, verifyAdmin,  async (req, res) => {
+               const { email = "", limit = 15 } = req.query;
+               const query = email
+                    ? { email: { $regex: email, $options: "i" } }
+                    : {};
+
+               const users = await usersCollection
+                    .find(query)
+                    .limit(Number(limit))
+                    .sort({ createdAt: -1 })
+                    .toArray();
+
+               const total = await usersCollection.countDocuments(query);
+
+               res.send({
+                    users,
+                    total
+               });
+          });
+
+          // app.patch("/admin/users/make-admin/:id", verifyAdmin, async (req, res) => {
+          //      await usersCollection.updateOne(
+          //           { _id: new ObjectId(req.params.id) },
+          //           { $set: { role: "admin" } }
+          //      );
+          //      res.send({ success: true });
+          // });
+
+          // app.patch("/admin/users/remove-admin/:id", verifyAdmin, async (req, res) => {
+          //      await usersCollection.updateOne(
+          //           { _id: new ObjectId(req.params.id) },
+          //           { $set: { role: "user" } }
+          //      );
+          //      res.send({ success: true });
+          // });
+
+
           // Delete donor by email
           app.delete('/donors/:email', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
                try {
