@@ -352,7 +352,8 @@ async function run() {
                          { email },
                          {
                               $set: {
-                                   isDonor: false
+                                   isDonor: false,
+                                   role: "user"
                               }
                          }
                     );
