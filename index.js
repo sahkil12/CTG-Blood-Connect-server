@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -62,7 +62,7 @@ async function run() {
                }
 
                if (emailFromParams !== emailFromToken) {
-                    return res.status(403).json({ message: 'Forbidden access' });
+                    return res.status(403).json({ success: false, message: 'Forbidden access' });
                }
                next();
           };
@@ -165,7 +165,7 @@ async function run() {
                }
           });
           // get all user
-          app.get('/users', verifyFirebaseToken, async (req, res) => {
+          app.get('/users', verifyFirebaseToken, verifyAdmin, async (req, res) => {
                const result = await usersCollection.find().toArray()
                res.send(result)
           })
@@ -261,7 +261,7 @@ async function run() {
           }
           );
           // get user for admin
-          app.get("/admin/users", verifyFirebaseToken, verifyAdmin,  async (req, res) => {
+          app.get("/admin/users", verifyFirebaseToken, verifyAdmin, async (req, res) => {
                const { email = "", limit = 15 } = req.query;
                const query = email
                     ? { email: { $regex: email, $options: "i" } }
@@ -280,24 +280,61 @@ async function run() {
                     total
                });
           });
+          // make admin api for admin
+          app.patch("/admin/users/make-admin/:id", verifyFirebaseToken, verifyAdmin, async (req, res) => {
+               const id = req.params.id
 
-          // app.patch("/admin/users/make-admin/:id", verifyAdmin, async (req, res) => {
-          //      await usersCollection.updateOne(
-          //           { _id: new ObjectId(req.params.id) },
-          //           { $set: { role: "admin" } }
-          //      );
-          //      res.send({ success: true });
-          // });
+               const user = await usersCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: { role: "admin" } }
+               );
+               if (user.matchedCount === 0) {
+                    return res.status(404).send({ message: "User not found" });
+               }
+               res.send({
+                    success: true,
+                    message: "User promoted to admin",
+               });
+          });
+          // remove admin api for admin
+          app.patch("/admin/users/remove-admin/:id", verifyFirebaseToken, verifyAdmin, async (req, res) => {
+               try {
+                    const { id } = req.params;
+                    const user = await usersCollection.findOne({
+                         _id: new ObjectId(id),
+                    });
+                    // check user
+                    if (!user) {
+                         return res.status(404).send({
+                              success: false,
+                              message: "User not found",
+                         });
+                    }
+                    // match user id
+                    if (user.email === req.user.email) {
+                         return res.status(400).send({
+                              success: false,
+                              message: "You cannot remove your own admin role",
+                         });
+                    }
+                    // find user
+                    await usersCollection.updateOne(
+                         { _id: new ObjectId(id) },
+                         { $set: { role: "user" } }
+                    );
 
-          // app.patch("/admin/users/remove-admin/:id", verifyAdmin, async (req, res) => {
-          //      await usersCollection.updateOne(
-          //           { _id: new ObjectId(req.params.id) },
-          //           { $set: { role: "user" } }
-          //      );
-          //      res.send({ success: true });
-          // });
+                    res.send({
+                         success: true,
+                         message: "Admin role removed",
+                    });
+               } catch (error) {
+                    res.status(500).send({
+                         success: false,
+                         message: "Server error",
+                    });
+               }
 
-
+          });
           // Delete donor by email
           app.delete('/donors/:email', verifyFirebaseToken, verifyEmailMatch, async (req, res) => {
                try {
