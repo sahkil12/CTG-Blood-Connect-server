@@ -3,6 +3,7 @@ const cors = require('cors');
 const { MongoClient, ObjectId } = require('mongodb');
 require('dotenv').config();
 const app = express();
+const nodemailer = require("nodemailer")
 const PORT = process.env.PORT || 5000;
 const admin = require('firebase-admin');
 // middleware
@@ -13,6 +14,32 @@ app.use(cors({
      ],
      credentials: true,
 }));
+
+// Gmail transporter
+const transporter = nodemailer.createTransport({
+     service: "gmail",
+     auth: {
+          user: process.env.GMAIL_USER,
+          pass: process.env.GMAIL_PASS,
+     },
+});
+
+// replace Resend function
+const sendEmail = async ({ to, subject, html }) => {
+     try {
+          const info = await transporter.sendMail({
+               from: `"CTG Blood Connect" <${process.env.GMAIL_USER}>`,
+               to,
+               subject,
+               html,
+          });
+          console.log("Email sent: ", info.messageId);
+          return info;
+     } catch (error) {
+          console.error("Email send error: ", error);
+          throw error;
+     }
+};
 
 app.use(express.json());
 // firebase admin
@@ -26,6 +53,45 @@ admin.initializeApp({
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gr8kgxz.mongodb.net/?appName=Cluster0`;
 // mongodb client
 const client = new MongoClient(uri)
+
+// ---------------- EMAIL TEMPLATE ---------------
+
+const welcomeEmailTemplate = (name) => `
+  <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+    <h2>Welcome to CTG Blood Connect ❤️</h2>
+    <p>Hi <b>${name}</b>,</p>
+
+    <p>Your account has been successfully created on <b>CTG Blood Connect</b>.</p>
+
+    <p>Through our platform you can:</p>
+    <ul>
+      <li>Find blood donors in emergency situations</li>
+      <li>Register yourself as a donor</li>
+      <li>Help save lives</li>
+    </ul>
+
+    <p>Whenever you’re ready, you can become a donor fill up a simple form with your details.</p>
+
+    <p>Thank you for being with us.</p>
+
+    <p><b>CTG Blood Connect Team</b></p>
+  </div>
+`;
+
+const donorEmailTemplate = (name) => `
+  <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+    <h2>Thank You for Becoming a Blood Donor 🩸</h2>
+    <p>Hi <b>${name}</b>,</p>
+
+    <p>Congratulations! You are now a registered blood donor on <b>CTG Blood Connect</b>.</p>
+
+    <p>Your decision can help save lives. Please keep your profile information updated and donate only when healthy.</p>
+
+    <p>We truly appreciate your kindness.</p>
+
+    <p><b>CTG Blood Connect Team</b></p>
+  </div>
+`;
 
 async function run() {
      try {
@@ -152,10 +218,22 @@ async function run() {
                          { email },
                          {
                               $set: {
-                                   isDonor: true
+                                   isDonor: true,
+                                   profileImage: donor?.profileImage
                               }
                          }
                     );
+                    // send donor email
+                    try {
+                         await sendEmail({
+                              to: email,
+                              subject: "Thank You for Becoming a Blood Donor 🩸",
+                              html: donorEmailTemplate(donor?.name || "Donor"),
+                         });
+                    } catch (err) {
+                         console.log("Donor email failed:", err?.message);
+                    }
+
                     res.status(201).json({
                          message: 'Donor added successfully',
                          insertedId: result.insertedId
@@ -208,8 +286,18 @@ async function run() {
                          isDonor: false,
                          createdAt: new Date()
                     };
-
                     const result = await usersCollection.insertOne(newUser);
+                    // send email
+                    try {
+                         await sendEmail({
+                              to: email,
+                              subject: "Welcome to CTG Blood Connect ❤️",
+                              html: welcomeEmailTemplate(name)
+                         })
+                    }
+                    catch (err) {
+                         console.log("Welcome email failed:", err?.message);
+                    }
 
                     res.status(201).json({
                          message: "User created",
@@ -353,7 +441,8 @@ async function run() {
                          {
                               $set: {
                                    isDonor: false,
-                                   role: "user"
+                                   role: "user",
+                                   profileImage: null,
                               }
                          }
                     );
@@ -384,6 +473,16 @@ async function run() {
                               }
                          }
                     );
+                    // update profile user
+                    await usersCollection.updateOne(
+                         { email },
+                         {
+                              $set: {
+                                   profileImage: updatedData?.profileImage,
+                              }
+                         }
+                    );
+
                     res.json({
                          message: 'Donor updated successfully',
                          modifiedCount: result.modifiedCount
